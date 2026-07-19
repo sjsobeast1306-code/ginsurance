@@ -241,6 +241,21 @@ input,select,textarea{font-family:inherit;font-size:16px;color:inherit}
 }
 .addrow:active{transform:scale(.99)}
 
+/* riders (附約) */
+.riders{margin-top:11px;padding-top:11px;border-top:1px dashed var(--line)}
+.riders-h{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px}
+.riderrow{border:1px solid var(--line-2);border-radius:10px;padding:8px;margin-bottom:8px;background:var(--surface-2)}
+.riderrow .rtop{display:flex;gap:7px;align-items:center;margin-bottom:7px}
+.riderrow .rbot{display:flex;gap:7px}
+.riderrow .rn{flex:1;height:40px;border:1px solid var(--line);border-radius:9px;padding:0 11px;font-size:14.5px;background:var(--surface)}
+.riderrow .rc,.riderrow .rp{flex:1;min-width:0;height:40px;border:1px solid var(--line);border-radius:9px;padding:0 11px;font-size:14.5px;background:var(--surface)}
+.riderrow .rx{width:38px;height:40px;border-radius:9px;background:var(--danger-soft);color:var(--danger);font-size:18px;font-weight:700;flex:none}
+.addrider{width:100%;height:40px;border:1.5px dashed var(--line);border-radius:10px;color:var(--pine);font-weight:700;font-size:13.5px;background:var(--surface-2)}
+.addrider:active{transform:scale(.99)}
+.riderlist{padding:0 0 8px;border-bottom:1px solid var(--line-2)}
+.rideritem{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2,#39423e);padding:2px 0 2px 6px}
+.rideritem .rc{color:var(--muted);font-family:var(--mono);text-align:right;white-space:nowrap}
+
 /* buttons */
 .btn{height:48px;border-radius:12px;font-weight:700;font-size:15.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;transition:transform .1s,filter .15s}
 .btn:active{transform:scale(.98)}
@@ -658,6 +673,7 @@ const GRADES = {
   "":{label:"未分級", sub:"待評", note:"尚未分級"},
 };
 const POLICY_TYPES = ["壽險","醫療","重大疾病","癌症","意外","儲蓄／投資","年金","長照","旅平險","團體保險","其他"];
+const POLICY_COMPANIES = ["國泰人壽","富邦人壽","南山人壽","新光人壽","凱基人壽","台灣人壽","三商美邦人壽","全球人壽","遠雄人壽","保誠人壽","宏泰人壽","安聯人壽","元大人壽","第一金人壽","合作金庫人壽","安達國際人壽","友邦人壽","法國巴黎人壽","臺銀人壽","中華郵政（簡易壽險）"];
 
 /* ============ state ============ */
 let DB = { meta:{ brand:"保險客戶資料庫", agent:"", updatedAt:null, schema:2 }, clients:[] };
@@ -933,10 +949,6 @@ function viewClients(){
   DB.clients.forEach(c=>counts[c.grade]++);
   const regions=allRegions();
   if(regionFilter!=="all" && regionFilter!=="none" && !regions.includes(regionFilter)) regionFilter="all";
-  let list=DB.clients.slice();
-  if(gradeFilter!=="all") list=list.filter(c=>c.grade===(gradeFilter==="none"?"":gradeFilter));
-  if(regionFilter!=="all") list=list.filter(c=>(c.region||"").trim()===(regionFilter==="none"?"":regionFilter));
-  if(q){ const k=q.toLowerCase(); list=list.filter(c=>(c.name||"").toLowerCase().includes(k)||(c.phone||"").includes(q)||(c.lineId||"").toLowerCase().includes(k)||(c.region||"").toLowerCase().includes(k)); }
 
   const chip=(key,label,n)=>`<button class="chip ${gradeFilter===key?"on":""}" onclick="setFilter('${key}')">${label}<span class="n">${n}</span></button>`;
   const icList=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg>`;
@@ -983,12 +995,26 @@ function viewClients(){
       <button class="btn amber" onclick="openAddMenu()">＋ 新增客戶</button>
       <div style="margin-top:14px"><button class="btn ghost" onclick="openImport()">或匯入舊備份</button></div></div>`;
   }
-
-  if(clientMode==="board") return head+viewBoard(list);
-
-  if(list.length===0) return head+`<div class="empty"><div class="big">🔍</div><h3>沒有符合的客戶</h3><p>換個關鍵字或篩選看看。</p></div>`;
+  return head+`<div id="clientResults">${clientResultsHtml()}</div>`;
+}
+function filteredClients(){
+  let list=DB.clients.slice();
+  if(gradeFilter!=="all") list=list.filter(c=>c.grade===(gradeFilter==="none"?"":gradeFilter));
+  if(regionFilter!=="all") list=list.filter(c=>(c.region||"").trim()===(regionFilter==="none"?"":regionFilter));
+  if(q){ const k=q.toLowerCase().trim(); list=list.filter(c=>(c.name||"").toLowerCase().includes(k)||(c.phone||"").includes(k)||(c.unit||"").toLowerCase().includes(k)||(c.region||"").toLowerCase().includes(k)); }
+  return list;
+}
+function clientResultsHtml(){
+  const list=filteredClients();
+  if(clientMode==="board") return viewBoard(list);
+  if(list.length===0) return `<div class="empty"><div class="big">🔍</div><h3>沒有符合的客戶</h3><p>換個關鍵字或篩選看看。</p></div>`;
   list.sort((a,b)=>{ const o={A:0,B:1,C:2,D:3,"":4}; if(o[a.grade]!==o[b.grade]) return o[a.grade]-o[b.grade]; return (a.name||"").localeCompare(b.name||"","zh-Hant"); });
-  return head+`<div class="clientgrid">${list.map(clientCard).join("")}</div>`;
+  return `<div class="clientgrid">${list.map(clientCard).join("")}</div>`;
+}
+function renderClientResults(){
+  const el=$("#clientResults"); if(!el) return;
+  el.innerHTML=clientResultsHtml();
+  if(clientMode==="board") bindBoard();
 }
 function setMode(m){ clientMode=m; render(); }
 function setRegion(r){ regionFilter=r; render(); }
@@ -1040,7 +1066,7 @@ function clientCard(c){
 }
 function setFilter(k){ gradeFilter=k; render(); }
 let searchT;
-function onSearch(v){ q=v; clearTimeout(searchT); searchT=setTimeout(()=>{ const m=$("#main"); const grid=document.querySelector(".clientgrid"); render(); const inp=document.querySelector(".search input"); if(inp){ inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length);} },180); }
+function onSearch(v){ q=v; clearTimeout(searchT); searchT=setTimeout(renderClientResults,140); }
 
 /* ---- board drag controller (touch + mouse, iPad-safe) ---- */
 function bindBoard(){
@@ -1453,9 +1479,10 @@ function openDetail(id){
   const policies=(c.policies||[]).length? c.policies.map(p=>`
     <div class="kv"><span class="k">${esc(p.name||"保單")}${p.type?` ・${esc(p.type)}`:""}</span>
     <span class="v">${p.premium?esc(p.premium)+" 元":""}</span></div>
-    <div style="font-size:12px;color:var(--muted);padding:0 0 8px;border-bottom:1px solid var(--line-2)">
-      ${p.company?esc(p.company)+" ・ ":""}${p.startDate?"投保 "+fmtDate(p.startDate):""}${p.paymentDate?" ・ 繳費 "+fmtDate(p.paymentDate):""}${p.maturityDate?" ・ 滿期 "+fmtDate(p.maturityDate):""}
-    </div>`).join("") : `<div style="color:var(--faint);font-size:13px">尚無保單紀錄</div>`;
+    <div style="font-size:12px;color:var(--muted);padding:0 0 ${(p.riders&&p.riders.length)?"6px":"8px"};${(p.riders&&p.riders.length)?"":"border-bottom:1px solid var(--line-2)"}">
+      ${p.policyNo?"No. "+esc(p.policyNo)+"　":""}${p.company?esc(p.company)+" ・ ":""}${p.startDate?"投保 "+fmtDate(p.startDate):""}${p.paymentDate?" ・ 繳費 "+fmtDate(p.paymentDate):""}${p.maturityDate?" ・ 滿期 "+fmtDate(p.maturityDate):""}
+    </div>
+    ${(p.riders&&p.riders.length)?`<div class="riderlist">${p.riders.map(r=>`<div class="rideritem"><span>↳ ${esc(r.name||"附約")}</span><span class="rc">${[r.coverage?"保額 "+esc(r.coverage):"", r.premium?"保費 "+esc(r.premium):""].filter(Boolean).join("　")}</span></div>`).join("")}</div>`:""}`).join("") : `<div style="color:var(--faint);font-size:13px">尚無保單紀錄</div>`;
 
   const claims=(c.claims||[]).length? c.claims.map(cl=>`
     <div class="kv"><span class="k">${esc(fmtDate(cl.date))} ${esc(cl.type||"")}</span>
@@ -1477,7 +1504,7 @@ function openDetail(id){
       <div class="meta">
         ${c.phone?`<a href="tel:${esc(c.phone)}">📞 ${esc(c.phone)}</a>`:""}
         ${c.region?`<span class="regiontag">📍 ${esc(c.region)}</span>`:""}
-        ${c.lineId?`<span>LINE: ${esc(c.lineId)}</span>`:""}
+        ${c.unit?`<span>🏢 ${esc(c.unit)}</span>`:""}
         ${c.birthday?`<span>🎂 ${esc(fmtDate(c.birthday))}</span>`:""}
         ${c.occupation?`<span>${esc(c.occupation)}</span>`:""}
         ${c.email?`<a href="mailto:${esc(c.email)}">✉️ ${esc(c.email)}</a>`:""}
@@ -1538,7 +1565,7 @@ function viewMarketing(){
 function marketingUse(tid){
   if(DB.clients.length===0){ toast("尚無客戶，可先用「複製原文」或到客戶頁新增","warn"); return; }
   const rows=DB.clients.slice().sort((a,b)=>(a.name||"").localeCompare(b.name||"","zh-Hant"))
-    .map(c=>`<div class="remitem mktpick" data-k="${esc(((c.name||"")+" "+(c.phone||"")+" "+(c.lineId||"")).toLowerCase())}" style="cursor:pointer" onclick="lineComposeFromMkt('${c.id}','${tid}')">
+    .map(c=>`<div class="remitem mktpick" data-k="${esc(((c.name||"")+" "+(c.phone||"")+" "+(c.unit||"")).toLowerCase())}" style="cursor:pointer" onclick="lineComposeFromMkt('${c.id}','${tid}')">
       <div class="avatar" style="width:38px;height:38px;font-size:15px;border-radius:11px">${esc(initial(c.name))}</div>
       <div class="body"><div class="t">${esc(c.name||"未命名")}</div>${c.phone?`<div class="who mono">${esc(c.phone)}</div>`:""}</div></div>`).join("");
   openSheet("選擇客戶", `
@@ -1766,7 +1793,7 @@ function openSmartImport(prefill){
     <p style="font-size:11.5px;color:var(--muted);margin:8px 2px 14px">選一張截圖或名片照片，系統會自動讀出文字並帶到下方。需連網，第一次會下載辨識模組。</p>
     <input type="file" id="siImg" accept="image/*" style="display:none" onchange="ocrImage(this)">
     <div class="formsec">辨識到的文字（可修改）</div>
-    <textarea class="raw" id="siText" style="min-height:130px;font-family:var(--sans);font-size:14px" placeholder="也可自行貼上文字…&#10;例：&#10;王小明&#10;0912-345-678&#10;生日 1990/03/15&#10;LINE: ming123">${prefill?esc(prefill):""}</textarea>
+    <textarea class="raw" id="siText" style="min-height:130px;font-family:var(--sans);font-size:14px" placeholder="也可自行貼上文字…&#10;例：&#10;王小明&#10;0912-345-678&#10;生日 1990/03/15&#10;公司：○○科技">${prefill?esc(prefill):""}</textarea>
     <button class="btn green full" style="margin-top:10px" onclick="parseSmart()">辨識欄位並預覽</button>
     <div class="formsec">或匯入聯絡人檔</div>
     <input type="file" id="siFile" accept=".vcf,.txt,text/plain,text/vcard,text/x-vcard"
@@ -1847,8 +1874,8 @@ function extractFields(text){
   let ph=text.match(/09\d{2}[\s\-.]?\d{3}[\s\-.]?\d{3}/);
   if(!ph) ph=text.match(/0\d{1,2}[\s\-.]?\d{3,4}[\s\-.]?\d{4}/);
   if(ph){ let dg=ph[0].replace(/\D/g,""); if(/^09\d{8}$/.test(dg)) dg=dg.replace(/(\d{4})(\d{3})(\d{3})/,"$1-$2-$3"); f.phone=dg; }
-  let ln=text.match(/(?:LINE|line|賴|萊)\s*(?:ID|id|帳號|账号)?\s*[：:＝=]?\s*([A-Za-z0-9._\-]{3,30})/);
-  if(ln && !/@/.test(ln[1])) f.lineId=ln[1];
+  let un=text.match(/(?:單位|服務單位|公司|任職於|服務於|任職公司|工作單位)\s*[：:]\s*([^\n\r，,]{2,20})/);
+  if(un) f.unit=un[1].trim();
   f.birthday=extractBirthday(text);
   let nm=text.match(/(?:姓名|名字|客戶|稱呼|名稱|聯絡人|Name)\s*[：:]\s*([\u4e00-\u9fa5]{2,5}|[A-Za-z][A-Za-z .]{1,20}[A-Za-z])/);
   if(nm){ f.name=nm[1].trim(); }
@@ -1891,7 +1918,7 @@ function parseVCards(text){
     const org=get(/\nORG[^:\n]*:(.+)/i).replace(/;+/g," ").trim();
     const title=get(/\nTITLE[^:\n]*:(.+)/i);
     const adr=get(/\nADR[^:\n]*:(.+)/i).replace(/;+/g," ").trim();
-    return {name, phone:tel, birthday:bday, email, occupation:title||org, address:adr};
+    return {name, phone:tel, birthday:bday, email, occupation:title, unit:org, address:adr, region:detectRegion(adr)};
   }).filter(c=>c.name||c.phone);
 }
 function fieldRow(label,val){ return `<div class="kv"><span class="k">${label}</span><span class="v">${val?esc(val):`<span style="color:var(--faint);font-weight:400">未偵測</span>`}</span></div>`; }
@@ -1899,11 +1926,11 @@ function showSmartPreview(list){
   if(!list || !list.length){ toast("沒有辨識到資料","warn"); return; }
   if(list.length===1){
     _smartPrefill=list[0]; const f=list[0];
-    const any=f.name||f.phone||f.birthday||f.email||f.lineId;
+    const any=f.name||f.phone||f.birthday||f.email||f.unit;
     openSheet("辨識結果", `
       <p style="font-size:13px;color:var(--muted);margin:0 0 12px">${any?"請確認辨識結果，下一步可再編輯後儲存。":"沒辨識到明確欄位，仍可手動補上。"}</p>
       <div class="block"><div class="block-body">
-        ${fieldRow("姓名",f.name)}${fieldRow("電話",f.phone)}${fieldRow("生日",f.birthday)}${fieldRow("LINE",f.lineId)}${fieldRow("Email",f.email)}${fieldRow("職業",f.occupation)}${fieldRow("地址",f.address)}
+        ${fieldRow("姓名",f.name)}${fieldRow("電話",f.phone)}${fieldRow("生日",f.birthday)}${fieldRow("單位公司",f.unit)}${fieldRow("Email",f.email)}${fieldRow("職業",f.occupation)}${fieldRow("地址",f.address)}${fieldRow("區域",f.region)}
       </div></div>
       <button class="btn green full" onclick="confirmSmart()">下一步：填入表單</button>
       <button class="btn ghost full" style="margin-top:10px" onclick="openSmartImport()">重新貼上</button>`);
@@ -1922,7 +1949,7 @@ function confirmBulk(){
   let n=0;
   (_smartBulk||[]).forEach(c=>{ if(!(c.name||c.phone)) return;
     DB.clients.push(Object.assign({id:uid(),reminders:[],claims:[],careLog:[],sopStatus:{},sopStep:1,grade:"",policies:[],createdAt:new Date().toISOString()},
-      {name:c.name||"(未命名)",phone:c.phone||"",birthday:c.birthday||"",email:c.email||"",lineId:c.lineId||"",occupation:c.occupation||"",address:c.address||""}));
+      {name:c.name||"(未命名)",phone:c.phone||"",birthday:c.birthday||"",email:c.email||"",unit:c.unit||"",occupation:c.occupation||"",address:c.address||"",region:c.region||""}));
     n++;
   });
   _smartBulk=null; commit(); closeSheet(); go("clients"); toast(`已匯入 ${n} 位客戶`);
@@ -1951,7 +1978,7 @@ function editClient(id, prefill){
     <div class="field"><label>姓名 *</label><input id="edName" value="${v("name")}" placeholder="客戶姓名"></div>
     <div class="row2">
       <div class="field"><label>電話</label><input id="edPhone" inputmode="tel" value="${v("phone")}" placeholder="0912-345-678"></div>
-      <div class="field"><label>LINE ID</label><input id="edLine" value="${v("lineId")}" placeholder="LINE 帳號"></div>
+      <div class="field"><label>單位公司名稱</label><input id="edUnit" value="${v("unit")}" placeholder="服務單位／公司"></div>
     </div>
     <div class="row2">
       <div class="field"><label>生日</label><input type="date" id="edBday" value="${v("birthday")}"></div>
@@ -2002,13 +2029,14 @@ function renderPolicyRows(){
     <div class="subcard">
       <button class="del" onclick="rmPolicy(${i})">×</button>
       <div class="field" style="margin-bottom:10px"><label>保單名稱</label><input value="${esc(p.name||"")}" oninput="polSet(${i},'name',this.value)" placeholder="例：終身醫療"></div>
+      <div class="field" style="margin-bottom:10px"><label>保單號碼</label><input value="${esc(p.policyNo||"")}" oninput="polSet(${i},'policyNo',this.value)" placeholder="保單號碼（選填）"></div>
       <div class="row2">
         <div class="field" style="margin-bottom:10px"><label>險種</label>
           <select onchange="polSet(${i},'type',this.value)">
             <option value="">選擇</option>
             ${POLICY_TYPES.map(t=>`<option ${p.type===t?"selected":""}>${t}</option>`).join("")}
           </select></div>
-        <div class="field" style="margin-bottom:10px"><label>保險公司</label><input value="${esc(p.company||"")}" oninput="polSet(${i},'company',this.value)" placeholder="公司"></div>
+        <div class="field" style="margin-bottom:10px"><label>保險公司</label><input list="polCompanyList" value="${esc(p.company||"")}" oninput="polSet(${i},'company',this.value)" placeholder="選擇或輸入公司"></div>
       </div>
       <div class="row2">
         <div class="field" style="margin-bottom:10px"><label>保費（元）</label><input inputmode="numeric" value="${esc(p.premium||"")}" oninput="polSet(${i},'premium',this.value)" placeholder="年繳保費"></div>
@@ -2018,9 +2046,27 @@ function renderPolicyRows(){
         <div class="field" style="margin-bottom:0"><label>繳費日（月/日排程）</label><input type="date" value="${esc(p.paymentDate||"")}" onchange="polSet(${i},'paymentDate',this.value)"></div>
         <div class="field" style="margin-bottom:0"><label>滿期日</label><input type="date" value="${esc(p.maturityDate||"")}" onchange="polSet(${i},'maturityDate',this.value)"></div>
       </div>
-    </div>`).join("");
+      <div class="riders">
+        <div class="riders-h">附約（附加險）</div>
+        ${(p.riders||[]).map((r,ri)=>`
+          <div class="riderrow">
+            <div class="rtop">
+              <input class="rn" value="${esc(r.name||"")}" oninput="riderSet(${i},${ri},'name',this.value)" placeholder="附約名稱，如：住院日額">
+              <button class="rx" onclick="rmRider(${i},${ri})">×</button>
+            </div>
+            <div class="rbot">
+              <input class="rc" inputmode="numeric" value="${esc(r.coverage||"")}" oninput="riderSet(${i},${ri},'coverage',this.value)" placeholder="保額">
+              <input class="rp" inputmode="numeric" value="${esc(r.premium||"")}" oninput="riderSet(${i},${ri},'premium',this.value)" placeholder="保費（元）">
+            </div>
+          </div>`).join("")}
+        <button class="addrider" onclick="addRider(${i})">＋ 附約</button>
+      </div>
+    </div>`).join("") + `<datalist id="polCompanyList">${POLICY_COMPANIES.map(c=>`<option value="${esc(c)}">`).join("")}</datalist>`;
 }
-function addPolicyRow(){ editingPolicies.push({id:uid(),name:"",type:"",company:"",premium:"",startDate:"",paymentDate:"",maturityDate:""}); renderPolicyRows(); }
+function addRider(i){ if(!editingPolicies[i]) return; if(!editingPolicies[i].riders) editingPolicies[i].riders=[]; editingPolicies[i].riders.push({name:"",coverage:"",premium:""}); renderPolicyRows(); }
+function rmRider(i,ri){ if(editingPolicies[i]&&editingPolicies[i].riders){ editingPolicies[i].riders.splice(ri,1); renderPolicyRows(); } }
+function riderSet(i,ri,k,v){ const p=editingPolicies[i]; if(p&&p.riders&&p.riders[ri]) p.riders[ri][k]=v; }
+function addPolicyRow(){ editingPolicies.push({id:uid(),name:"",policyNo:"",type:"",company:"",premium:"",startDate:"",paymentDate:"",maturityDate:"",riders:[]}); renderPolicyRows(); }
 function rmPolicy(i){ editingPolicies.splice(i,1); renderPolicyRows(); }
 function polSet(i,k,v){ if(editingPolicies[i]) editingPolicies[i][k]=v; }
 
@@ -2029,13 +2075,15 @@ function saveClient(){
   if(!name){ toast("請填寫姓名","warn"); $("#edName").focus(); return; }
   const id=$("#edId").value;
   const data={
-    name, phone:$("#edPhone").value.trim(), lineId:$("#edLine").value.trim(),
+    name, phone:$("#edPhone").value.trim(), unit:$("#edUnit").value.trim(),
     birthday:$("#edBday").value, occupation:$("#edJob").value.trim(),
     email:($("#edEmail")||{}).value?.trim()||"", address:($("#edAddr")||{}).value?.trim()||"",
     region:($("#edRegion")||{}).value?.trim()||"",
     grade:$("#edGrade").value, sopStep:+$("#edStep").value||1,
     needs:$("#edNeeds").value.trim(), notes:$("#edNotes").value.trim(),
-    policies:editingPolicies.filter(p=>p.name||p.type||p.company||p.premium),
+    policies:editingPolicies
+      .map(p=>({...p, riders:(p.riders||[]).filter(r=>(r.name||"").trim()||(r.coverage||"").trim()||(r.premium||"").trim())}))
+      .filter(p=>p.name||p.type||p.company||p.premium||p.policyNo||(p.riders&&p.riders.length)),
   };
   if(id){
     const c=DB.clients.find(x=>x.id===id);
